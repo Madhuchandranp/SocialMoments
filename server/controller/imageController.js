@@ -20,7 +20,7 @@ const upload = multer({
   storage: storage,
   fileFilter: (req, file, cb) => {
     // Accept images only
-    if (!file.originalname.match(/\.(jpg|JPG|jpeg|JPEG|png|PNG|gif|GIF)$/)) {
+    if (!file.originalname.match(/\.(jpg|JPG|jpeg|JPEG|png|PNG|gif|GIF|webp)$/)) {
       req.fileValidationError = "Only image files are allowed!";
       return cb(new Error("Only image files are allowed!"), false);
     }
@@ -66,10 +66,13 @@ exports.getSelectedPosts = (req, res) => {
 
 exports.deletePosts = async (req, res) => {
   console.log("Post delete called");
-  const { id, name } = req.body;
+  const { id, imageName } = req.body; // Changed to imageName for clarity
   try {
-    await Post.findByIdAndDelete(id);
-    const filePath = `public/files/${name}`;
+    const post = await Post.findByIdAndDelete(id);
+    if (!post) {
+      return res.status(404).json({ message: "Post not found" });
+    }
+    const filePath = `public/files/${imageName}`; // Use imageName instead of name
     if (fs.existsSync(filePath)) {
       fs.unlink(filePath, (err) => {
         if (err) throw err;
@@ -79,6 +82,48 @@ exports.deletePosts = async (req, res) => {
     res.status(200).json({ passed: true });
   } catch (err) {
     console.log(err);
+    res.status(500).json({ error: "An error occurred" });
+  }
+};
+
+exports.likePost = async (req, res) => {
+  console.log("Post like called");
+  const { postId } = req.body;
+
+  try {
+    const post = await Post.findById(postId);
+    if (!post) {
+      return res.status(404).json({ message: "Post not found" });
+    }
+
+    post.likes = post.likes || 0;
+    post.likes += 1;
+
+    await post.save();
+    res.status(200).json({ message: 'Post liked', likes: post.likes });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "An error occurred" });
+  }
+};
+
+exports.reportPost = async (req, res) => {
+  console.log("Post report called");
+  const { postId } = req.body;
+
+  try {
+    const post = await Post.findById(postId);
+    if (!post) {
+      return res.status(404).json({ message: "Post not found" });
+    }
+
+    post.reports = post.reports || 0;
+    post.reports += 1;
+
+    await post.save();
+    res.status(200).json({ message: 'Post reported', reports: post.reports });
+  } catch (err) {
+    console.error(err);
     res.status(500).json({ error: "An error occurred" });
   }
 };
